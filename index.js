@@ -57,7 +57,7 @@ const client = new MongoClient(uri, {
 const db = client.db("apartmentsDB");
 const apartmentsCollection = db.collection("apartments");
 const agreementsCollection = db.collection("agreements");
-const usersCollection = db.collection('users')
+const usersCollection = db.collection("users");
 
 async function run() {
   try {
@@ -70,20 +70,33 @@ async function run() {
       res.send({ token });
     });
 
-    // store user info in DB
-    app.post('/users', async(req, res)=>{
+    // store USER INFO in DB
+    app.post("/users", async (req, res) => {
       const userInfo = req.body;
       const result = await usersCollection.insertOne(userInfo);
       res.send(result);
-    })
-
-    // get all apartments data
-    app.get("/apartments", async (req, res) => {
-      const result = await apartmentsCollection.find().toArray();
-      res.send(result);
     });
 
-    // store agreement in DB
+    // get APARTMENTS data
+    app.get("/apartments", async (req, res) => {
+      const page = parseInt(req?.query?.pages);
+      const minRent = parseInt(req?.query?.min);
+      const maxRent = parseInt(req?.query?.max);
+      let query = {};
+      if (minRent && maxRent) {
+        query = { rent: { $gte: minRent, $lte: maxRent } };
+      }
+      const totalApartments =
+        await apartmentsCollection.estimatedDocumentCount();
+      const result = await apartmentsCollection
+        .find(query)
+        .skip((page - 1) * 6)
+        .limit(6)
+        .toArray();
+      res.send({ result, totalApartments });
+    });
+
+    // store AGREEMENT INFO in DB
     app.post("/agreement", async (req, res) => {
       const agreementInfo = req.body;
       const email = agreementInfo.email;
