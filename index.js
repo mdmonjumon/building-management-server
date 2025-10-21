@@ -14,12 +14,32 @@ app.use(
   })
 );
 
+// middleware
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("dev"));
 
-// user buildingDB
-// pass 9cyr4iLTPy9fT6lK
+// verify jwt token
+const verifyToken = (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  const token = req.headers.authorization.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  jwt.verify(token, process.env.JWT_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    } else {
+      req.user = decoded;
+      next();
+    }
+  });
+};
 
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const uri = `mongodb+srv://${process.env.BUILDING_DB_USER}:${process.env.BUILDING_DB_PASS}@cluster0.xt5rphe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -33,32 +53,43 @@ const client = new MongoClient(uri, {
   },
 });
 
+// database collections
+const db = client.db("apartmentsDB");
+const apartmentsCollection = db.collection("apartments");
+const agreementsCollection = db.collection("agreements");
+const usersCollection = db.collection('users')
+
 async function run() {
   try {
-
     // jwt token
-    app.post('/jwt', (req, res)=>{
-        const user = req.body
-        const token = jwt.sign(user, process.env.JWT_TOKEN_SECRET, {expiresIn:"30d"})
-        res.send({token});
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_TOKEN_SECRET, {
+        expiresIn: "30d",
+      });
+      res.send({ token });
+    });
+
+    // store user info in DB
+    app.post('/users', async(req, res)=>{
+      const userInfo = req.body;
+      const result = await usersCollection.insertOne(userInfo);
+      res.send(result);
     })
 
+    // get all apartments data
+    app.get("/apartments", async (req, res) => {
+      const result = await apartmentsCollection.find().toArray();
+      res.send(result);
+    });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    // store agreement in DB
+    app.post("/agreement", async (req, res) => {
+      const agreementInfo = req.body;
+      const email = agreementInfo.email;
+      const result = agreementsCollection.findOne({ email: email });
+      // do complete rest part of code
+    });
 
     app.get("/", (req, res) => {
       res.send("building app running");
@@ -77,7 +108,7 @@ async function run() {
     );
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
