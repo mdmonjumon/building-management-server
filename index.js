@@ -97,11 +97,23 @@ async function run() {
     });
 
     // store AGREEMENT INFO in DB
-    app.post("/agreement", async (req, res) => {
+    app.post("/agreement", verifyToken, async (req, res) => {
       const agreementInfo = req.body;
-      const email = agreementInfo.email;
-      const result = agreementsCollection.findOne({ email: email });
-      // do complete rest part of code
+      const email = req?.user?.email;
+      if (email !== agreementInfo?.userEmail) {
+        return res.status(401).send({ message: "unauthorized access" });
+      }
+      const isExist = await agreementsCollection.findOne({ userEmail: email });
+      console.log(isExist);
+      if (isExist) {
+        console.log("exist");
+        return res.status(400).send({ message: "You have already agreement." });
+      }
+      const result = await agreementsCollection.insertOne({
+        ...agreementInfo,
+        status: "pending",
+      });
+      res.send(result);
     });
 
     app.get("/", (req, res) => {
