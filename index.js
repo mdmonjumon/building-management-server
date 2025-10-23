@@ -116,6 +116,14 @@ async function run() {
       res.send(result);
     });
 
+    // get agreement data for specific user
+    app.get("/agreement/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const result = await agreementsCollection.findOne({userEmail:email})
+      res.send(result);
+    });
+
+    
     app.get("/", (req, res) => {
       res.send("building app running");
     });
