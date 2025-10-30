@@ -69,6 +69,7 @@ const apartmentsCollection = db.collection("apartments");
 const agreementsCollection = db.collection("agreements");
 const usersCollection = db.collection("users");
 const couponsCollection = db.collection("coupon");
+const paymentsCollection = db.collection("payments");
 
 async function run() {
   try {
@@ -148,7 +149,11 @@ async function run() {
     });
 
     // save payments info in db
-    
+    app.post("/payments", verifyToken, async (req, res) => {
+      const paymentData = req.body;
+      const result = paymentsCollection.insertOne(paymentData);
+      res.send(result);
+    });
 
     // create payment intent
     app.post("/payment-intent", verifyToken, async (req, res) => {
