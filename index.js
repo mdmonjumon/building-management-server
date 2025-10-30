@@ -155,6 +155,14 @@ async function run() {
       res.send(result);
     });
 
+    // get payment info for specific user
+    app.get("/payments/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      console.log(email);
+      const result = await paymentsCollection.find({ email }).toArray();
+      res.send(result);
+    });
+
     // create payment intent
     app.post("/payment-intent", verifyToken, async (req, res) => {
       const paymentInfo = req.body;
