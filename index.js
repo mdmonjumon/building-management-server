@@ -69,6 +69,7 @@ const apartmentsCollection = db.collection("apartments");
 const agreementsCollection = db.collection("agreements");
 const usersCollection = db.collection("users");
 const couponsCollection = db.collection("coupon");
+const announcementCollection = db.collection("announcement");
 const paymentsCollection = db.collection("payments");
 
 async function run() {
@@ -135,6 +136,12 @@ async function run() {
       res.send(result);
     });
 
+    // get all agreements data (only admin)
+    app.get("/agreements", verifyToken, async (req, res) => {
+      const result = await agreementsCollection.find().toArray();
+      res.send(result);
+    });
+    
     // get coupon data
     app.get("/coupons", async (req, res) => {
       const result = await couponsCollection.find().toArray();
@@ -158,8 +165,86 @@ async function run() {
     // get payment info for specific user
     app.get("/payments/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      console.log(email);
       const result = await paymentsCollection.find({ email }).toArray();
+      res.send(result);
+    });
+
+    // admin profile stats
+    app.get("/admin-stats", verifyToken, async (req, res) => {
+      const roomStats = await apartmentsCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              totalRooms: { $sum: 1 },
+              availableRooms: {
+                $sum: { $cond: [{ $ne: ["$status", "pending"] }, 1, 0] },
+              },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              totalRooms: 1,
+              availableRoomsPct: {
+                $multiply: [
+                  { $divide: ["$availableRooms", "$totalRooms"] },
+                  100,
+                ],
+              },
+              unavailableRoomsPct: {
+                $multiply: [
+                  {
+                    $divide: [
+                      { $subtract: ["$totalRooms", "$availableRooms"] },
+                      "$totalRooms",
+                    ],
+                  },
+                  100,
+                ],
+              },
+            },
+          },
+        ])
+        .next();
+
+      const userStats = await usersCollection
+        .aggregate([
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              totalMembers: {
+                $sum: { $cond: [{ $eq: ["$role", "member"] }, 1, 0] },
+              },
+              totalAdmin: {
+                $sum: { $cond: [{ $eq: ["$role", "admin"] }, 1, 0] },
+              },
+            },
+          },
+
+          {
+            $project: {
+              _id: 0,
+              totalMembers: 1,
+              totalUsers: {
+                $subtract: [
+                  "$total",
+                  { $sum: ["$totalMember", "$totalAdmin"] },
+                ],
+              },
+            },
+          },
+        ])
+        .next();
+
+      res.send({ ...roomStats, ...userStats });
+    });
+
+    // save announcement info to db (admin only)
+    app.post("/announcement", verifyToken, async (req, res) => {
+      const announcementInfo = req.body;
+      const result = await announcementCollection.insertOne(announcementInfo);
       res.send(result);
     });
 
