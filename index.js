@@ -138,10 +138,24 @@ async function run() {
 
     // get all agreements data (only admin)
     app.get("/agreements", verifyToken, async (req, res) => {
-      const result = await agreementsCollection.find().toArray();
+      const result = await agreementsCollection
+        .aggregate([
+          {
+            $addFields: {
+              date: {
+                $dateToString: {
+                  format: "%Y-%m-%d",
+                  date: { $toDate: "$_id" },
+                },
+              },
+            },
+          },
+        ])
+        .toArray();
+
       res.send(result);
     });
-    
+
     // get coupon data
     app.get("/coupons", async (req, res) => {
       const result = await couponsCollection.find().toArray();
